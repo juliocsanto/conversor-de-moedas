@@ -213,5 +213,5 @@ timeCurrencyOneEl.addEventListener('input', handleTimeCurrencyOneElInput)
 currencyTwoEl.addEventListener('input', handleCurrencyTwoElInput)
 currencyOneEl.addEventListener('input', handleCurrencyOneElInput)
 
-//início da aplicação
+//início da aplicação ####
 init()
