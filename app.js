@@ -37,10 +37,71 @@ const convertedValueEl = document.querySelector('[data-js="converted-value"]')
 const valuePrecisionEl = document.querySelector('[data-js="conversion-precision"]')
 const timeCurrencyOneEl = document.querySelector('[data-js="currency-one-times"]')
 
-let internalExchangeRate = {}
+const showAlert = err => {
+  // quando cria elementos no DOM com createElement eu consigo adicionar eventos nesse elemento
+  // antes mesmo de ele ter sido inserido no DOM, porque esse elemento é um objeto
+  // e a referência desse objeto será a mesma tanto no JS quanto no DOM quando for inserido lá
+  const div = document.createElement('div')
+  const button = document.createElement('button')
+
+  //passa o valor da mensagem como conteúdo da div
+  div.textContent = err.message
+  //adiciona as classes na propriedade classe da div e do button
+  div.classList.add('alert', 'alert-warning', 'alert-dismissible', 'fade', 'show')
+  button.classList.add('btn-close')
+  //adiciona o atributo "role" com o valor "alert" no elemento div
+  div.setAttribute('role', 'alert')
+  //adiciona o atributo "type" com o valor "button" no elemento button
+  button.setAttribute('type', 'button')
+  button.setAttribute('aria-label', 'Close')
+  
+  const removeAlert = () => {
+    //remove a div
+    div.remove()
+  }
+  //adiciona o EventListener no botão
+  button.addEventListener('click', removeAlert)
+  //adiciona o elemento botão como filho dessa div
+  div.appendChild(button)
+  //adiciona no DOM o elemento div logo após o fim do elemento currenciesEl
+  currenciesEl.insertAdjacentElement('afterend', div)
+
+  /*
+  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+   <strong>Holy guacamole!</strong> You should check in on some of those fields below.
+   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  */
+}
+
+//IIFE = Expressão de Função Imediatamente Invocada
+// (() => {})()
+//Como a função se auto-executa, os objetos declarados dentro dela já foram declarados na memória
+//Assim, todos as vezes que tentar buscar alguma informação dele, vou pegar do mesmo local
+//da memória, ou seja, o mesmo objeto
+//Ela usa o escopo lexico, que mantém os dados usados no momento de sua primeira execução para 
+//funções, variáveis e objetos, usando a mesma parte da memória
+const state = (() => {
+  let exchangeRate = {}
+
+  return {
+    getExchangeRate: () => exchangeRate,
+    setExchangeRate: newExchangeRate => {
+      if (!newExchangeRate.conversion_rates) {
+        showAlert({ message: 'Objeto deve conter a propriedade conversion_rates!' });
+        return
+      }
+
+      exchangeRate = newExchangeRate
+      return exchangeRate
+    }
+  }
+})()
+
+const APIKey = 'c333797df7fe0c684d65b653'
 
 const getUrl = currency =>
- `https://v6.exchangerate-api.com/v6/c333797df7fe0c684d65b653/latest/${currency}`
+  `https://v6.exchangerate-api.com/v6/${APIKey}/latest/${currency}`
 
 const APIErrorMessages = {
   "unsupported-code": "Moeda não existe em nosso banco de dados.",
@@ -70,90 +131,87 @@ const fetchExchangeRate = async url => {
     const exchangeRateData = await response.json();
 
     if (exchangeRateData.result === 'error') {
-      throw new Error(getErrorMessage(exchangeRateData['error-type']))
+      const errorMessage = getErrorMessage(exchangeRateData['error-type'])
+      throw new Error(errorMessage)
     }
 
-    return exchangeRateData
+    return state.setExchangeRate(exchangeRateData)
   } catch (err) {
-     // quando cria elementos no DOM com createElement eu consigo adicionar eventos nesse elemento
-    // antes mesmo de ele ter sido inserido no DOM, porque esse elemento é um objeto
-    // e a referência desse objeto será a mesma tanto no JS quanto no DOM quando for inserido lá
-    const div = document.createElement('div')
-    const button = document.createElement('button')
-
-    //passa o valor da mensagem como conteúdo da div
-    div.textContent = err.message
-    //adiciona as classes na propriedade classe da div e do button
-    div.classList.add('alert', 'alert-warning', 'alert-dismissible', 'fade', 'show')
-    button.classList.add('btn-close')
-    //adiciona o atributo "role" com o valor "alert" no elemento div
-    div.setAttribute('role', 'alert')
-    //adiciona o atributo "type" com o valor "button" no elemento button
-    button.setAttribute('type','button')
-    button.setAttribute('aria-label','Close')
-
-    //adiciona o EventListener no botão
-    button.addEventListener('click', () => {
-      //remove a div
-      div.remove()
-    })
-    //adiciona o elemento botão como filho dessa div
-    div.appendChild(button)
-    //adiciona no DOM o elemento div logo após o fim do elemento currenciesEl
-    currenciesEl.insertAdjacentElement('afterend', div)
-    
-/*
-    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-      <strong>Holy guacamole!</strong> You should check in on some of those fields below.
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-*/
+    showAlert(err)
   }
+}
+
+//método Object.keys é usado para acessar e trabalhar com as chaves de um objeto
+//a expressão está gerando um array de options e então fazendo a junção por espaço vazio
+const getOptions = (selectedCurrency, conversion_rates) => {
+  const setSelectedAtribute = currency => 
+    currency === selectedCurrency ? 'selected' : ''
+  
+  const getOptionsAsArray = currency => 
+    `<option ${setSelectedAtribute(currency)}>${currency}</option>`
+      
+    return Object.keys(conversion_rates)
+    .map(getOptionsAsArray)
+    .join('')
+}
+
+const getMultipliedExchangeRate = conversion_rates => {
+  const currencyTwo = conversion_rates[currencyTwoEl.value]
+  return (timeCurrencyOneEl.value * currencyTwo).toFixed(2)
+}
+
+const getNotRoundedExchangeRate = conversion_rates => {
+  const currencyTwo = conversion_rates[currencyTwoEl.value]
+  return `1 ${currencyOneEl.value} = ${1 * currencyTwo} ${currencyTwoEl.value}`
+}
+
+const showUpdatedRates = ({ conversion_rates }) => {
+  convertedValueEl.textContent = getMultipliedExchangeRate(conversion_rates)
+  valuePrecisionEl.textContent = getNotRoundedExchangeRate(conversion_rates)
+}
+
+const showInitialInfo = ({ conversion_rates }) => {
+  //alterando o objeto do DOM
+  currencyOneEl.innerHTML = getOptions('USD', conversion_rates)
+  currencyTwoEl.innerHTML = getOptions('BRL', conversion_rates)
+
+  showUpdatedRates({ conversion_rates })
 }
 
 const init = async () => {
   // executa a chamada da API e espalha (spread) o retorno no objeto internalExchangeRate
-  internalExchangeRate = { ...(await fetchExchangeRate(getUrl('USD'))) }
+  const url = getUrl('USD')
+  const exchangeRate = await fetchExchangeRate(url)
 
-  //método Object.keys é usado para acessar e trabalhar com as chaves de um objeto
-  //a expressão está gerando um array de options e então fazendo a junção por espaço vazio
-  const getOptions = selectedCurrency => Object.keys(internalExchangeRate.conversion_rates)
-    .map(currency => `<option ${currency === selectedCurrency ? 'selected' : ''}>${currency}</option>`)
-    .join('')
-    
-  //alterando o objeto do DOM
-  currencyOneEl.innerHTML = getOptions('USD')
-  currencyTwoEl.innerHTML = getOptions('BRL')
-  
-  convertedValueEl.textContent = internalExchangeRate.conversion_rates.BRL.toFixed(2)
-  valuePrecisionEl.textContent = `1 USD = ${internalExchangeRate.conversion_rates.BRL} BRL`
+  if (exchangeRate && exchangeRate.conversion_rates) {
+    showInitialInfo(exchangeRate)
+  }
 }
 
-timeCurrencyOneEl.addEventListener('input', e => {
+const handleTimeCurrencyOneElInput = () => {
+  const { conversion_rates } = state.getExchangeRate()
   // e.target.value retorna o valor do elemento alvo do evento
-  convertedValueEl.textContent = 
-    (e.target.value * internalExchangeRate.conversion_rates[currencyTwoEl.value])
-      .toFixed(2)
-})
 
-currencyTwoEl.addEventListener('input', e => {
-  const currencyTwoValue = internalExchangeRate.conversion_rates[e.target.value]
-  convertedValueEl.textContent = (timeCurrencyOneEl.value * currencyTwoValue).toFixed(2)
-  valuePrecisionEl.textContent = 
-    `1 ${currencyOneEl.value} = ${1 * internalExchangeRate.conversion_rates[currencyTwoEl.value]} 
-       ${currencyTwoEl.value}`
-})
+  convertedValueEl.textContent = getMultipliedExchangeRate(conversion_rates)
+}
 
-currencyOneEl.addEventListener('input', async e => {
+const handleCurrencyTwoElInput = () => {
+  const exchangeRate = state.getExchangeRate()
+  showUpdatedRates(exchangeRate)
+}
+
+const handleCurrencyOneElInput = async e => {
+  const url = getUrl(e.target.value)
+  const exchangeRate = await fetchExchangeRate(url)
   //executa a chamada da API e espalha (spread) o retorno no objeto internalExchangeRate
-  internalExchangeRate = { ...(await fetchExchangeRate(getUrl(e.target.value))) }
-  
-  convertedValueEl.textContent = 
-    (timeCurrencyOneEl.value * internalExchangeRate.conversion_rates[currencyTwoEl.value]).toFixed(2)
-  
-  valuePrecisionEl.textContent =  
-    `1 ${currencyOneEl.value} = ${1 * internalExchangeRate.conversion_rates[currencyTwoEl.value]} 
-       ${currencyTwoEl.value}`
-})
+  // internalExchangeRate = { ...(await fetchExchangeRate(getUrl(e.target.value))) }
 
+  showUpdatedRates(exchangeRate)
+}
+
+timeCurrencyOneEl.addEventListener('input', handleTimeCurrencyOneElInput)
+currencyTwoEl.addEventListener('input', handleCurrencyTwoElInput)
+currencyOneEl.addEventListener('input', handleCurrencyOneElInput)
+
+//início da aplicação
 init()

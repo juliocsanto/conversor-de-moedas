@@ -1,0 +1,48 @@
+//IIFE = Expressão de Função Imediatamente Invocada
+// (() => {})()
+//Como a função se auto-executa, os objetos declarados dentro dela já foram declarados na memória
+//Assim, todos as vezes que tentar buscar alguma informação dele, vou pegar do mesmo local
+//da memória, ou seja, o mesmo objeto
+//Ela usa o escopo lexico, que mantém os dados usados no momento de sua primeira execução para 
+//funções, variáveis e objetos, usando a mesma parte da memória
+
+const state = (() => {
+  let exchangeRate = {}
+
+  return {
+    getExchangeRate: () => exchangeRate,
+    setExchangeRate: newExchangeRate => {
+      if (!newExchangeRate.conversion_rates) {
+        console.log('Objeto deve conter a propriedade conversion_rates!');
+        return
+      }
+
+      exchangeRate = newExchangeRate
+      return exchangeRate
+    }
+  }
+})()
+
+console.log(state.getExchangeRate());
+console.log(state.setExchangeRate({
+  x: "oi"
+}));
+console.log(state.getExchangeRate());
+console.log(state.setExchangeRate({
+  conversion_rates: {
+    'USD': '1'
+  }
+}));
+console.log(state.getExchangeRate());
+
+*************** Refatoração ***************
+Princípios:
+-> Melhorar legibilidade do código
+-> Ajustar redundâncias
+-> Ajudar na análise posterior
+
+Exemplos:
+1 - Identificar código duplicado e tornar em única função e então reutilizar
+2 - Armazenar em constantes os retornos de funções encadeadas 
+3 - Nomear arrow functions
+4 - Não ter linhas com mais de 80 caracteres
